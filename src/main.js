@@ -6,36 +6,43 @@ import 'simplelightbox/dist/simple-lightbox.min.css';
 
 hideLoader();
 
+const options = {
+  captionsData: 'alt',
+  captionsDelay: 250,
+};
+const lightbox = new SimpleLightbox('.image-card', options);
+
 document.querySelector('form').addEventListener('submit', function (event) {
   event.preventDefault();
-  const searchInput = document.querySelector('input').value;
+  const searchInput = document.querySelector('input').value.trim();
 
-  if (searchInput.trim() !== '') {
-    showLoader();
-    searchImages(searchInput)
-      .then(data => {
-        hideLoader();
-        if (data.hits.length > 0) {
-          displayImages(data.hits);
-          initLightbox();
-        } else {
-          showNoResultsMessage();
-        }
-      })
-      .catch(error => {
-        hideLoader();
-        console.error('Error fetching images:', error.message);
-        iziToast.error({
-          title: 'Error',
-          message: 'An error occurred while fetching images. Please try again.',
-        });
-      });
-  } else {
+  if (searchInput === '') {
     iziToast.error({
       title: 'Error',
       message: 'Please enter a search query.',
     });
+    return;
   }
+  showLoader();
+  searchImages(searchInput)
+    .then(data => {
+      hideLoader();
+      if (data.hits.length > 0) {
+        displayImages(data.hits);
+        lightbox.refresh();
+      } else {
+        showNoResultsMessage();
+        clearImages();
+      }
+    })
+    .catch(error => {
+      hideLoader();
+      console.error('Error fetching images:', error.message);
+      iziToast.error({
+        title: 'Error',
+        message: 'An error occurred while fetching images. Please try again.',
+      });
+    });
 });
 
 function searchImages(query) {
@@ -54,52 +61,36 @@ function displayImages(images) {
   const gallery = document.querySelector('.gallery');
   gallery.innerHTML = '';
 
-  images.forEach(image => {
-    const cardContainer = document.createElement('a');
-    cardContainer.href = image.largeImageURL;
-    cardContainer.className = 'image-card';
+  const ul = document.createElement('ul');
+  ul.className = 'image-list';
 
-    const imageContainer = document.createElement('div');
-    imageContainer.className = 'image-container';
+  const imageMarkup = images
+    .map(
+      image => `
+    <li class="image-item">
+      <a href="${image.largeImageURL}" class="image-card">
+        <div class="image-container">
+          <img src="${image.webformatURL}" alt="${image.tags}">
+        </div>
+        <div class="image-info">
+          <span>Likes: ${image.likes}</span>
+          <span>Views: ${image.views}</span>
+          <span>Comments: ${image.comments}</span>
+          <span>Downloads: ${image.downloads}</span>
+        </div>
+      </a>
+    </li>
+  `
+    )
+    .join('');
 
-    const thumbnail = document.createElement('img');
-    thumbnail.src = image.webformatURL;
-    thumbnail.alt = image.tags;
-    imageContainer.appendChild(thumbnail);
-
-    const infoContainer = document.createElement('div');
-    infoContainer.className = 'image-info';
-
-    const likes = document.createElement('span');
-    likes.textContent = `Likes: ${image.likes}`;
-    infoContainer.appendChild(likes);
-
-    const views = document.createElement('span');
-    views.textContent = `Views: ${image.views}`;
-    infoContainer.appendChild(views);
-
-    const comments = document.createElement('span');
-    comments.textContent = `Comments: ${image.comments}`;
-    infoContainer.appendChild(comments);
-
-    const downloads = document.createElement('span');
-    downloads.textContent = `Downloads: ${image.downloads}`;
-    infoContainer.appendChild(downloads);
-
-    cardContainer.appendChild(imageContainer);
-    cardContainer.appendChild(infoContainer);
-
-    gallery.appendChild(cardContainer);
-  });
+  ul.innerHTML = imageMarkup;
+  gallery.appendChild(ul);
 }
 
-function initLightbox() {
-  const options = {
-    captionsData: 'alt',
-    captionsDelay: 250,
-  };
-  const lightbox = new SimpleLightbox('.image-card', options);
-  lightbox.refresh();
+function clearImages() {
+  const gallery = document.querySelector('.gallery');
+  gallery.innerHTML = '';
 }
 
 function showLoader() {
